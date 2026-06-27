@@ -3,7 +3,7 @@ Bootstrap and sync tool for dotfiles on Arch Linux. Works with any dotfiles repo
 
 ## Install
 ```bash
-curl -fsSL https://raw.githubusercontent.com/ungaul/athome/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/ungaul/athome/master/install.sh | bash
 ```
 
 ## Usage
