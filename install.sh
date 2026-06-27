@@ -2,7 +2,7 @@
 set -euo pipefail
 
 LINK="/usr/local/bin/athome"
-RAW="https://raw.githubusercontent.com/ungaul/athome/master/athome.sh"
+RAW="https://raw.githubusercontent.com/ungaul/athome/main/athome.sh"
 
 if [ -z "${BASH_SOURCE[0]:-}" ] || [ ! -f "${BASH_SOURCE[0]}" ]; then
   echo "Downloading athome.sh -> $LINK"
