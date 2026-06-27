@@ -142,10 +142,15 @@ prompt_config() {
   save_config
   log "config saved to $CONFIG_FILE"
   if [ ! -f "$SYNC_FILE" ]; then
-    mkdir -p "$(dirname "$SYNC_FILE")"
+  mkdir -p "$(dirname "$SYNC_FILE")"
+  if [ -f "$REPO/sync.conf" ]; then
+    cp "$REPO/sync.conf" "$SYNC_FILE"
+    log "sync.conf loaded from dotfiles repo"
+  else
     touch "$SYNC_FILE"
     log "created empty $SYNC_FILE — add paths to track there"
   fi
+fi
   printf '\n'
 }
 
@@ -691,7 +696,7 @@ stage_dotfiles() {
   local deploy_args=(--deploy)
   [ "$ASSUME_YES" -eq 1 ] && deploy_args+=(-y)
   local rc=0
-  DOTFILES_DIR="$REPO" bash "$ATHOME_DIR/athome.sh" "${deploy_args[@]}" || rc=$?
+  DOTFILES_DIR="$REPO" bash "$(readlink -f "${BASH_SOURCE[0]}")" "${deploy_args[@]}"
   [ "$rc" -eq 0 ] || warn "deploy exited with code $rc"
 }
 
