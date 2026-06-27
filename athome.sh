@@ -506,7 +506,7 @@ stage_clone() {
   log "-- checking for dotfiles repo at $REPO --"
   if git -C "$REPO" rev-parse --git-dir >/dev/null 2>&1; then
     log "dotfiles repo already present, pulling latest"
-    git -C "$REPO" fetch origin -q 2>/dev/null && git -C "$REPO" reset --hard origin/main -q \
+    git -C "$REPO" fetch origin -q 2>/dev/null && git -C "$REPO" reset --hard origin/master -q \
       || warn "git pull failed in $REPO, continuing with whatever is checked out"
     return 0
   fi
@@ -1175,7 +1175,7 @@ if [ ! -f "$SYNC_FILE" ]; then
 fi
 
 log "repo: pulling latest..."
-git -C "$REPO" fetch origin -q 2>/dev/null && git -C "$REPO" reset --hard origin/main -q \
+git -C "$REPO" fetch origin -q 2>/dev/null && git -C "$REPO" reset --hard origin/master -q \
   || warn "git pull failed in $REPO, continuing with local copy"
 log "repo: up to date"
 
