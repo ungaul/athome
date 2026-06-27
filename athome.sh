@@ -514,7 +514,7 @@ stage_clone() {
   log "-- checking for dotfiles repo at $REPO --"
   if git -C "$REPO" rev-parse --git-dir >/dev/null 2>&1; then
     log "dotfiles repo already present, pulling latest"
-    git -C "$REPO" fetch origin -q 2>/dev/null && git -C "$REPO" reset --hard origin/master -q \
+    git -C "$REPO" fetch origin -q 2>/dev/null && git -C "$REPO" reset --hard origin/main -q \
       || warn "git pull failed in $REPO, continuing with whatever is checked out"
     return 0
   fi
@@ -693,6 +693,13 @@ stage_display_manager() {
 
 stage_dotfiles() {
   log "-- deploying tracked files (repo -> live, backed up to $HOME/dotfiles_backup) --"
+  # Bootstrap: if live sync.conf is empty but repo has one, copy it first so --deploy can use it
+  local repo_sync="$REPO/.config/athome/sync.conf"
+  if [ -f "$repo_sync" ] && [ ! -s "$SYNC_FILE" ]; then
+    mkdir -p "$(dirname "$SYNC_FILE")"
+    cp "$repo_sync" "$SYNC_FILE"
+    log "sync.conf bootstrapped from repo"
+  fi
   local deploy_args=(--deploy)
   [ "$ASSUME_YES" -eq 1 ] && deploy_args+=(-y)
   local rc=0
@@ -1177,13 +1184,20 @@ _SYNCED_REPO_FILES=()  # repo paths touched this run
 
 snapshot_enabled_units
 
-if [ ! -f "$SYNC_FILE" ]; then
-  log "no sync file at $SYNC_FILE, nothing to do"
-  exit 0
+if [ ! -s "$SYNC_FILE" ]; then
+  _repo_sync="$REPO/.config/athome/sync.conf"
+  if [ -f "$_repo_sync" ]; then
+    mkdir -p "$(dirname "$SYNC_FILE")"
+    cp "$_repo_sync" "$SYNC_FILE"
+    log "sync.conf bootstrapped from repo"
+  else
+    log "no sync file at $SYNC_FILE, nothing to do"
+    exit 0
+  fi
 fi
 
 log "repo: pulling latest..."
-git -C "$REPO" fetch origin -q 2>/dev/null && git -C "$REPO" reset --hard origin/master -q \
+git -C "$REPO" fetch origin -q 2>/dev/null && git -C "$REPO" reset --hard origin/main -q \
   || warn "git pull failed in $REPO, continuing with local copy"
 log "repo: up to date"
 
