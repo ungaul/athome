@@ -484,7 +484,10 @@ stage_base_devel() {
 
 stage_gh_auth() {
   log "-- authenticating with GitHub via gh --"
-  command -v gh >/dev/null 2>&1 || { warn "gh not installed — install it via .pacman"; return 1; }
+  if ! command -v gh >/dev/null 2>&1; then
+    log "  gh not found — installing via pacman..."
+    sudo pacman -S --needed --noconfirm github-cli || { warn "could not install gh"; return 1; }
+  fi
   if gh auth status >/dev/null 2>&1; then
     # Ensure admin:public_key scope is granted
     if ! gh auth status 2>&1 | grep -q 'admin:public_key'; then
