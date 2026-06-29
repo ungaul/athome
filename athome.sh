@@ -1241,7 +1241,7 @@ if command -v pacman >/dev/null 2>&1 && [ -f "$REPO/.pacman" ]; then
       log "packages: all present"
       printf '%s\n' "$_pacman_hash" > "$_pacman_hash_cache"
     fi
-    if [ "${REMOVE_UNLISTED:-0}" -eq 1 ] && [ "$_pacman_hash" != "$_cached_hash" ]; then
+    if [ "${REMOVE_UNLISTED:-0}" -eq 1 ]; then
       mapfile -t _aur < <(pacman -Qqem 2>/dev/null | sort)
       mapfile -t _official < <(
         comm -23 <(pacman -Qqe | sort) <(printf '%s\n' "${_aur[@]:-}" | sort)
