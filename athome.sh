@@ -1225,24 +1225,21 @@ if command -v pacman >/dev/null 2>&1 && [ -f "$REPO/.pacman" ]; then
     _pacman_hash="$(sha256sum "$REPO/.pacman" | cut -d' ' -f1)"
     _pacman_hash_cache="$_DATA_DIR/pacman.last-hash"
     _cached_hash="$(cat "$_pacman_hash_cache" 2>/dev/null || true)"
-    if [ "$_pacman_hash" = "$_cached_hash" ]; then
-      log "packages: .pacman unchanged, skipping check"
-    else
-        mapfile -t _missing < <(comm -23 <(printf '%s\n' "${_pkgs[@]}") <(pacman -Qq | sort))
-      if [ "${#_missing[@]}" -gt 0 ]; then
-        if command -v yay >/dev/null 2>&1; then
-          log "packages: installing ${#_missing[@]} missing package(s)"
-          yay -S --needed --noconfirm --batchinstall --norebuild --removemake \
-              --answerdiff None --answeredit None --answerclean None --ask 4 \
-              --overwrite '*' \
-              "${_missing[@]}" && printf '%s\n' "$_pacman_hash" > "$_pacman_hash_cache" \
-            || warn "some packages failed to install"
-        else
-          warn "packages: ${#_missing[@]} missing, but yay not found — install yay to manage packages"
-        fi
+    mapfile -t _missing < <(comm -23 <(printf '%s\n' "${_pkgs[@]}") <(pacman -Qq | sort))
+    if [ "${#_missing[@]}" -gt 0 ]; then
+      if command -v yay >/dev/null 2>&1; then
+        log "packages: installing ${#_missing[@]} missing package(s)"
+        yay -S --needed --noconfirm --batchinstall --norebuild --removemake \
+            --answerdiff None --answeredit None --answerclean None --ask 4 \
+            --overwrite '*' \
+            "${_missing[@]}" && printf '%s\n' "$_pacman_hash" > "$_pacman_hash_cache" \
+          || warn "some packages failed to install"
       else
-        printf '%s\n' "$_pacman_hash" > "$_pacman_hash_cache"
+        warn "packages: ${#_missing[@]} missing, but yay not found — install yay to manage packages"
       fi
+    else
+      log "packages: all present"
+      printf '%s\n' "$_pacman_hash" > "$_pacman_hash_cache"
     fi
     if [ "${REMOVE_UNLISTED:-0}" -eq 1 ] && [ "$_pacman_hash" != "$_cached_hash" ]; then
       mapfile -t _aur < <(pacman -Qqem 2>/dev/null | sort)
