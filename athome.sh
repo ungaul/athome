@@ -143,8 +143,8 @@ prompt_config() {
   log "config saved to $CONFIG_FILE"
   if [ ! -f "$SYNC_FILE" ]; then
   mkdir -p "$(dirname "$SYNC_FILE")"
-  if [ -f "$REPO/sync.conf" ]; then
-    cp "$REPO/sync.conf" "$SYNC_FILE"
+  if [ -f "$DOTFILES_DIR/sync.conf" ]; then
+    cp "$DOTFILES_DIR/sync.conf" "$SYNC_FILE"
     log "sync.conf loaded from dotfiles repo"
   else
     touch "$SYNC_FILE"
