@@ -155,11 +155,52 @@ fi
 }
 
 REMOVE_UNLISTED=0
+declare -a _TRACKED=()
+declare -a _BLACKLIST=()
+
 if ! load_config; then
   BOOTSTRAP=1
 fi
 load_config 2>/dev/null || prompt_config
 REPO="$DOTFILES_DIR"
+
+# ---- sync.conf parsing -------------------------------------------------------
+
+load_sync_conf() {
+  _TRACKED=()
+  _BLACKLIST=()
+  local section="" raw
+  while IFS= read -r raw || [ -n "$raw" ]; do
+    raw="$(printf '%s' "$raw" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
+    [ -z "$raw" ] && continue
+    case "$raw" in \#*) continue ;; esac
+    case "$raw" in
+      '[blacklist]') section=blacklist; continue ;;
+      '['*']')       section="";        continue ;;
+    esac
+    if [ "$section" = blacklist ]; then
+      _BLACKLIST+=("${raw%/}")
+    else
+      _TRACKED+=("$raw")
+    fi
+  done < "$SYNC_FILE"
+}
+
+is_blacklisted() {
+  local path="$1" rel pattern
+  [ "${#_BLACKLIST[@]}" -eq 0 ] && return 1
+  case "$path" in
+    "$HOME"/*) rel="${path#"$HOME"/}" ;;
+    /*)        rel="${path#/}" ;;
+    *)         rel="$path" ;;
+  esac
+  for pattern in "${_BLACKLIST[@]}"; do
+    case "$rel" in
+      "$pattern"|"$pattern"/*) return 0 ;;
+    esac
+  done
+  return 1
+}
 
 # ---- sync helpers ------------------------------------------------------------
 
@@ -433,6 +474,7 @@ sync_dir_pair() {
   } | sort -u > "$tmp_list"
   while IFS= read -r rel; do
     [ -n "$rel" ] || continue
+    is_blacklisted "$live_root/$rel" && continue
     sync_one_file "$live_root/$rel" "$repo_root/$rel" "$live_root/$rel"
   done < "$tmp_list"
   rm -f "$tmp_list"
@@ -1070,13 +1112,11 @@ fi
 
 if [ "$DEPLOY" -eq 1 ]; then
   [ -f "$SYNC_FILE" ] || { log "no sync file at $SYNC_FILE, nothing to do"; exit 0; }
+  load_sync_conf
 
   pending="$(mktemp)"
   stale="$(mktemp)"
-  while IFS= read -r raw || [ -n "$raw" ]; do
-    raw="$(printf '%s' "$raw" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
-    [ -z "$raw" ] && continue
-    case "$raw" in \#*) continue ;; esac
+  for raw in "${_TRACKED[@]+"${_TRACKED[@]}"}"; do
     raw="${raw%/}"
     case "$raw" in /*) live="$raw" ;; *) live="$HOME/$raw" ;; esac
     repo_target="$(repo_path_for "$live")"
@@ -1084,18 +1124,20 @@ if [ "$DEPLOY" -eq 1 ]; then
     if [ -d "$repo_target" ]; then
       while IFS= read -r rel; do
         [ -n "$rel" ] || continue
+        is_blacklisted "$live/$rel" && continue
         printf '%s\t%s\n' "$live/$rel" "$repo_target/$rel" >> "$pending"
       done < <(find "$repo_target" -type f -printf '%P\n')
       if [ -d "$live" ]; then
         while IFS= read -r rel; do
           [ -n "$rel" ] || continue
+          is_blacklisted "$live/$rel" && continue
           [ -f "$repo_target/$rel" ] || printf '%s\n' "$live/$rel" >> "$stale"
         done < <(find "$live" -type f -printf '%P\n')
       fi
     elif [ -f "$repo_target" ]; then
-      printf '%s\t%s\n' "$live" "$repo_target" >> "$pending"
+      is_blacklisted "$live" || printf '%s\t%s\n' "$live" "$repo_target" >> "$pending"
     fi
-  done < "$SYNC_FILE"
+  done
 
   to_replace="$(mktemp)"
   while IFS=$'\t' read -r live repo; do
@@ -1201,12 +1243,9 @@ git -C "$REPO" fetch origin -q 2>/dev/null && git -C "$REPO" reset --hard origin
   || warn "git pull failed in $REPO, continuing with local copy"
 log "repo: up to date"
 
+load_sync_conf
 log "files: starting sync..."
-while IFS= read -r raw || [ -n "$raw" ]; do
-  raw="$(printf '%s' "$raw" | sed 's/^[[:space:]]*//; s/[[:space:]]*$//')"
-  [ -z "$raw" ] && continue
-  case "$raw" in \#*) continue ;; esac
-
+for raw in "${_TRACKED[@]+"${_TRACKED[@]}"}"; do
   raw="${raw%/}"
   case "$raw" in /*) live="$raw" ;; *) live="$HOME/$raw" ;; esac
   repo_target="$(repo_path_for "$live")"
@@ -1214,9 +1253,9 @@ while IFS= read -r raw || [ -n "$raw" ]; do
   if [ -d "$live" ] || [ -d "$repo_target" ]; then
     sync_dir_pair "$live" "$repo_target"
   else
-    sync_one_file "$live" "$repo_target" "$live"
+    is_blacklisted "$live" || sync_one_file "$live" "$repo_target" "$live"
   fi
-done < "$SYNC_FILE"
+done
 log "files: sync done"
 
 if command -v pacman >/dev/null 2>&1 && [ -f "$REPO/.pacman" ]; then
