@@ -954,8 +954,8 @@ stage_sudoers() {
   log "-- writing sudoers entry for athome pacman operations --"
   local file="/etc/sudoers.d/athome-pacman" user
   user="$(id -un)"
-  local entry="$user ALL=(ALL) NOPASSWD: /usr/bin/pacman -Syu --noconfirm, /usr/bin/pacman -S --needed --noconfirm *, /usr/bin/pacman -Rns --noconfirm *"
-  if [ -f "$file" ] && grep -qF "NOPASSWD:" "$file"; then
+  local entry="$user ALL=(ALL) NOPASSWD: /usr/bin/pacman *"
+  if [ -f "$file" ] && grep -qF "$entry" "$file"; then
     log "  sudoers entry already exists"; return 0
   fi
   printf '%s\n' "$entry" | sudo tee "$file" > /dev/null
@@ -1257,6 +1257,16 @@ for raw in "${_TRACKED[@]+"${_TRACKED[@]}"}"; do
   fi
 done
 log "files: sync done"
+
+if command -v yay >/dev/null 2>&1; then
+  log "packages: updating system (yay -Syu)"
+  yay -Syu --noconfirm --batchinstall --norebuild --removemake \
+      --answerdiff None --answeredit None --answerclean None --ask 4 \
+    || warn "yay -Syu failed"
+elif command -v pacman >/dev/null 2>&1; then
+  log "packages: updating system (pacman -Syu)"
+  sudo pacman -Syu --noconfirm || warn "pacman -Syu failed"
+fi
 
 if command -v pacman >/dev/null 2>&1 && [ -f "$REPO/.pacman" ]; then
   mapfile -t _pkgs < <(pacman_listed "$REPO/.pacman")
